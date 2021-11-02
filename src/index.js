@@ -132,4 +132,21 @@ app.get("/account",verifyExistsAccountCPF,(request,response)=>{
     return response.json(custumer);
 })
 
+app.delete("/account",verifyExistsAccountCPF,(request,response)=>{
+    const {custumer} = request;
+
+    //splice
+    custumers.splice(custumer, 1)
+
+    return response.status(200).json(custumers);
+})
+
+app.get("/balance",verifyExistsAccountCPF,(request,response)=>{
+    const {custumer} = request;
+
+    const balance = getBalance(custumer.statement);
+
+    return response.json(balance);
+})
+
 app.listen(3333);
