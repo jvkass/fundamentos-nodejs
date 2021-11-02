@@ -1,6 +1,6 @@
 const { request, response } = require('express');
 const express = require('express');
-const { v4 : uuidv4} = require("uuid")
+const { v4: uuidv4 } = require("uuid")
 
 
 const app = express();
@@ -10,13 +10,13 @@ app.use(express.json());
 const custumers = [];
 
 //middleware
-function verifyExistsAccountCPF(request,response,next){
-    const {cpf} =  request.headers;
+function verifyExistsAccountCPF(request, response, next) {
+    const { cpf } = request.headers;
 
-    const custumer = custumers.find(custumer =>custumer.cpf === cpf);
+    const custumer = custumers.find(custumer => custumer.cpf === cpf);
 
-    if(!custumer){
-        return response.status(400).json({error: "Custurmers not found"});
+    if (!custumer) {
+        return response.status(400).json({ error: "Custurmers not found" });
     }
 
     request.custumer = custumer;
@@ -24,27 +24,27 @@ function verifyExistsAccountCPF(request,response,next){
     return next();
 }
 
-function getBalance(statement){
-    const balance = statement.reduce((acc, operation)=>{
-        if(operation.type === 'credit'){
+function getBalance(statement) {
+    const balance = statement.reduce((acc, operation) => {
+        if (operation.type === 'credit') {
             return acc + operation.amount;
-        }else{
+        } else {
             return acc - operation.amount;
         }
-    },0);
+    }, 0);
 
     return balance;
 }
 
-app.post("/account", (request, response)=>{
-    const {cpf,name} = request.body;
+app.post("/account", (request, response) => {
+    const { cpf, name } = request.body;
 
     const custumersAlreadyExists = custumers.some(
         (custumer) => custumer.cpf === cpf
     );
 
-    if (custumersAlreadyExists){
-        return response.status(400).json({ error:"Custumer already exist!"})
+    if (custumersAlreadyExists) {
+        return response.status(400).json({ error: "Custumer already exist!" })
     }
 
     const id = uuidv4();
@@ -53,53 +53,68 @@ app.post("/account", (request, response)=>{
         cpf,
         name,
         id,
-        statement:[]    
+        statement: []
     });
 
     return response.status(201).send();
 });
 
-app.get("/statement",verifyExistsAccountCPF,(request, response)=>{
-    const {custumer} = request;
+app.get("/statement", verifyExistsAccountCPF, (request, response) => {
+    const { custumer } = request;
     return response.status(200).json(custumer.statement);
 });
 
-app.post("/deposit", verifyExistsAccountCPF,(request,response)=>{
-   const {description,amount} = request.body;
+app.post("/deposit", verifyExistsAccountCPF, (request, response) => {
+    const { description, amount } = request.body;
 
-   const {custumer} = request;
+    const { custumer } = request;
 
-   const statementOperation = {
-    description,
-    amount,
-    created_at: new Date(),
-    type:"credit"
-   }
+    const statementOperation = {
+        description,
+        amount,
+        created_at: new Date(),
+        type: "credit"
+    }
 
-   custumer.statement.push(statementOperation);
+    custumer.statement.push(statementOperation);
 
-   return response.status(201).send();
+    return response.status(201).send();
 })
 
-app.post("/withdraw",verifyExistsAccountCPF,(request,response)=>{
-    const {amount} = request.body;
-    const {custumer} = request;
+app.post("/withdraw", verifyExistsAccountCPF, (request, response) => {
+    const { amount } = request.body;
+    const { custumer } = request;
 
     const balance = getBalance(custumer.statement);
 
-    if (balance < amount){
-        return response.status(400).json({ error:"Insufficient founds!"})
+    if (balance < amount) {
+        return response.status(400).json({ error: "Insufficient founds!" })
     }
 
     const statementOperation = {
         amount,
-        created_at:new Date(),
+        created_at: new Date(),
         type: "debit",
     };
 
     custumer.statement.push(statementOperation);
 
     return response.status(201).send();
+});
+
+app.get("/statement/date", verifyExistsAccountCPF, (request, response) => {
+    const { custumer } = request;
+    const { date } = request.query;
+
+    const dateFormat = new Date(date + " 00:00");
+
+    const statement = custumer.statement.filter(
+        (statement) =>
+            statement.created_at.toDateString() ===
+            new Date(dateFormat).toDateString()
+        );
+
+    return response.json(statement);
 });
 
 app.listen(3333);
